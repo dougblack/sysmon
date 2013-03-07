@@ -1,4 +1,4 @@
-obj-m += sysmod_module.o 
+obj-m += sysmon.o 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
