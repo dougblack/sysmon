@@ -77,18 +77,6 @@ static void sysmon_intercept_after(struct kprobe *kp, struct pt_regs *regs, unsi
 
 }
 
-/* Read current uid */
-int uid_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data)
-{
-   int ret_length;
-   if (offset > 0) {
-      ret_length = 0; 
-   } else {
-      ret_length = sprintf(buffer, "%d\n", uid);
-   }
-   return ret_length;
-}
-
 /* Set current uid */
 int uid_write(struct file *file, const char *buffer, unsigned long count, void *data)
 {
@@ -102,18 +90,6 @@ int uid_write(struct file *file, const char *buffer, unsigned long count, void *
    printk(KERN_INFO "uid is %d", uid);
 
    return count;
-}
-
-/* Read enabled/disabled */
-int toggle_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data)
-{
-   int ret_length;
-   if (offset > 0) {
-      ret_length = 0; 
-   } else {
-      ret_length = sprintf(buffer, "%d\n", toggle);
-   }
-   return ret_length;
 }
 
 /* Set enabled/disabled */
@@ -187,13 +163,11 @@ int init_module()
       return -EFAULT;
    }
 
-   uid_entry->read_proc = uid_read;
    uid_entry->write_proc = uid_write;
    uid_entry->owner = THIS_MODULE;
    uid_entry->mode = S_IFREG | S_IRUGO;
    uid_entry->size = 37;
 
-   toggle_entry->read_proc = toggle_read;
    toggle_entry->write_proc = toggle_write;
    toggle_entry->owner = THIS_MODULE;
    toggle_entry->mode = S_IFREG | S_IRUGO;
