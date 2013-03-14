@@ -31,13 +31,13 @@ struct proc_dir_entry *toggle_entry;
 struct proc_dir_entry *log_entry;
 
 static int toggle = 0;
-static int uid = 0;
+static int uid = -1;
 
 /* Called before each syscall */
 static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 {
    int ret = 0;
-   if (current->uid != uid)
+   if (toggle == 0 || current->uid != uid)
       return 0;
    printk(KERN_INFO MODULE_NAME "[%s] %lu %d %d args 0x%lu '%lu' %d\n", kp->symbol_name, regs->rax, current->pid, current->tgid, (uintptr_t) regs->rdi, regs->rdi, (int) regs->rsi);
    return ret;
@@ -98,7 +98,7 @@ int toggle_write(struct file *file, const char *buffer, unsigned long count, voi
    }
 
    sscanf((const char*) toggle_buffer, "%d", &toggle);
-   printk(KERN_INFO "toggle is %d", toggle);
+   printk(KERN_INFO MODULE_NAME "toggle is %d\n", toggle);
 
    return count;
 }
@@ -145,11 +145,11 @@ int init_module()
   
    if (uid_entry == NULL || toggle_entry == NULL || log_entry == NULL) {
       remove_proc_entry(uid_name, NULL);
-      printk(KERN_INFO "/proc/%s removed\n", uid_name);
+      printk(KERN_INFO MODULE_NAME "/proc/%s removed\n", uid_name);
       remove_proc_entry(toggle_name, NULL);
-      printk(KERN_INFO "/proc/%s removed\n", toggle_name);
+      printk(KERN_INFO MODULE_NAME "/proc/%s removed\n", toggle_name);
       remove_proc_entry(log_name, NULL);
-      printk(KERN_INFO "/proc/%s removed\n", log_name);
+      printk(KERN_INFO MODULE_NAME "/proc/%s removed\n", log_name);
       printk(KERN_INFO MODULE_NAME "Couldn't make proc files so removed them.\n");
       return -EFAULT;
    }
@@ -185,11 +185,11 @@ void cleanup_module()
    printk(KERN_INFO MODULE_NAME "Cleaning up.\n");
 
    remove_proc_entry(uid_name, NULL);
-   printk(KERN_INFO "/proc/%s removed\n", uid_name);
+   printk(KERN_INFO MODULE_NAME "/proc/%s removed\n", uid_name);
    remove_proc_entry(toggle_name, NULL);
-   printk(KERN_INFO "/proc/%s removed\n", toggle_name);
+   printk(KERN_INFO MODULE_NAME "/proc/%s removed\n", toggle_name);
    remove_proc_entry(log_name, NULL);
-   printk(KERN_INFO "/proc/%s removed\n", log_name);
+   printk(KERN_INFO MODULE_NAME "/proc/%s removed\n", log_name);
 
    printk(KERN_INFO MODULE_NAME "Done cleaning up.\n");
 }
