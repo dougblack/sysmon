@@ -40,7 +40,6 @@ struct proc_dir_entry *toggle_entry;
 struct proc_dir_entry *log_entry;
 static struct log_block head;
 static struct log_block *current_block;
-static struct log_block *read_block;
 
 static int toggle = 0;
 static int uid = -1;
@@ -72,10 +71,6 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
       printk(KERN_INFO MODULE_NAME "Filled a block! Its id is %d\n", current_block->id);
    }
 
-   if (read_block == NULL) {
-      read_block = current_block;
-   }
-
    return ret;
 }
 
@@ -91,15 +86,16 @@ int log_read(char *buffer, char **buffer_location, off_t offset, int buffer_leng
    int ret_length = 0;
    int lines_read = 0;
    int block_line = 0;
+   struct log_block *read_block;
+
    if (offset > 0) {
       ret_length = 0; 
    } else {
 
-      while(read_block != NULL) {
+      for (read_block = &head; read_block != NULL; lines_read++) {
 
          /* Print to buffer */
          printk("%s", read_block->lines[block_line]);
-         lines_read++; 
 
          /* If we're at the end of the block, move to the next one */
          if (++block_line > read_block->line_count) {
@@ -107,11 +103,10 @@ int log_read(char *buffer, char **buffer_location, off_t offset, int buffer_leng
             read_block = read_block->next;
             block_line = 0;
          }
-
       }
-   }
 
-   read_block = &head;
+      printk(KERN_INFO MODULE_NAME "Read %d lines.\n", lines_read);
+   }
 
    return ret_length;
 }
@@ -167,12 +162,11 @@ int init_module()
       }
    }
 
-   /* Set up log linked list */
+   /* Set up the log linked list */
    head.line_count = 0;
    head.next = NULL;
    head.id = 0;
    current_block = &head;
-   read_block = &head;
 
    printk(KERN_INFO MODULE_NAME "added all the kprobes.\n");
 
