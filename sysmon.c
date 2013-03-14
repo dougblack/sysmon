@@ -19,6 +19,8 @@ MODULE_LICENSE("GPL");
 #define log_name "sysmon_log"
 
 #define MAX_BUFFER_SIZE 1024
+#define MAX_LOG_LINES 90
+#define LOG_BLOCK_SIZE 30
 
 /* All of the syscalls we're interested in */
 static char *probe_names[] = {"sys_access", "sys_brk", "sys_chdir", "sys_chmod", "sys_clone", "sys_close", "sys_dup", "sys_dup2", "sys_execve", "sys_exit_group", "sys_fcntl", "sys_fork", "sys_getdents", "sys_getpid", "sys_gettid", "sys_ioctl", "sys_lseek", "sys_mkdir", "sys_mmap", "sys_munmap", "sys_open", "sys_pipe", "sys_read", "sys_rmdir", "sys_select", "sys_stat", "sys_fstat", "sys_lstat", "sys_wait4", "sys_write"};
@@ -29,7 +31,7 @@ static struct kprobe probes[30];
 static struct log_block {
    int id;
    int line_count;
-   char *lines[30];
+   char *lines[LOG_BLOCK_SIZE];
    struct log_block *next;
 };
 
@@ -38,6 +40,7 @@ struct proc_dir_entry *toggle_entry;
 struct proc_dir_entry *log_entry;
 static struct log_block head;
 static struct log_block *current_block;
+static struct log_block *read_block;
 
 static int toggle = 0;
 static int uid = -1;
@@ -55,7 +58,7 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 
    current_block->lines[current_block->line_count] = line;
 
-   if (current_block->line_count < 29) {
+   if (current_block->line_count < LOG_BLOCK_SIZE - 1) {
       /* We aren't on the last line yet, increment line counter */
       current_block->line_count++;
    } else {
@@ -65,7 +68,12 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
       current_block = current_block->next;
       current_block->line_count = 0;
       current_block->next = NULL;
+
       printk(KERN_INFO MODULE_NAME "Filled a block! Its id is %d\n", current_block->id);
+   }
+
+   if (read_block == NULL) {
+      read_block = current_block;
    }
 
    return ret;
@@ -75,6 +83,37 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 static void sysmon_intercept_after(struct kprobe *kp, struct pt_regs *regs, unsigned long flags)
 {
 
+}
+
+/* Read the log */
+int log_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data)
+{
+   int ret_length = 0;
+   int lines_read = 0;
+   int block_line = 0;
+   if (offset > 0) {
+      ret_length = 0; 
+   } else {
+
+      while(read_block != NULL) {
+
+         /* Print to buffer */
+         printk("%s", read_block->lines[block_line]);
+         lines_read++; 
+
+         /* If we're at the end of the block, move to the next one */
+         if (++block_line > read_block->line_count) {
+            printk(KERN_INFO MODULE_NAME "Moving to block %d\n", read_block->id + 1);
+            read_block = read_block->next;
+            block_line = 0;
+         }
+
+      }
+   }
+
+   read_block = &head;
+
+   return ret_length;
 }
 
 /* Set current uid */
@@ -107,18 +146,6 @@ int toggle_write(struct file *file, const char *buffer, unsigned long count, voi
    return count;
 }
 
-/* Read the log */
-int log_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data)
-{
-   int ret_length;
-   if (offset > 0) {
-      ret_length = 0; 
-   } else {
-      /* RETURN LOG HERE */
-   }
-   return ret_length;
-}
-
 /* Set up module */
 int init_module()
 {
@@ -140,10 +167,12 @@ int init_module()
       }
    }
 
+   /* Set up log linked list */
    head.line_count = 0;
    head.next = NULL;
    head.id = 0;
    current_block = &head;
+   read_block = &head;
 
    printk(KERN_INFO MODULE_NAME "added all the kprobes.\n");
 
