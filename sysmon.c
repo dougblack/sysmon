@@ -66,7 +66,7 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
       current_block = current_block->next;
       current_block->line_count = 0;
       current_block->next = NULL;
-      printk(KERN_INFO MODULE_NAME "Filled a block! It's id is %d\n", current_block->id);
+      printk(KERN_INFO MODULE_NAME "Filled a block! Its id is %d\n", current_block->id);
    }
 
    /* Add formatted string to an open log_block */
