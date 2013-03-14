@@ -20,7 +20,7 @@ MODULE_LICENSE("GPL");
 
 #define MAX_BUFFER_SIZE 1024
 
-/* All of the syscalls we're interested */
+/* All of the syscalls we're interested in */
 static char *probe_names[] = {"sys_access", "sys_brk", "sys_chdir", "sys_chmod", "sys_clone", "sys_close", "sys_dup", "sys_dup2", "sys_execve", "sys_exit_group", "sys_fcntl", "sys_fork", "sys_getdents", "sys_getpid", "sys_gettid", "sys_ioctl", "sys_lseek", "sys_mkdir", "sys_mmap", "sys_munmap", "sys_open", "sys_pipe", "sys_read", "sys_rmdir", "sys_select", "sys_stat", "sys_fstat", "sys_lstat", "sys_wait4", "sys_write"};
 
 /* The KPROBE! */
