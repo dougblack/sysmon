@@ -1,4 +1,6 @@
-## Sysmon
+# Sysmon
+
+A kernel module that intercepts all syscalls made by the target user. It captures both the syscall and the passed arguments.
 
 Setup
 
