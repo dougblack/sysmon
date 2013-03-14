@@ -26,9 +26,18 @@ static char *probe_names[] = {"sys_access", "sys_brk", "sys_chdir", "sys_chmod",
 /* The KPROBE! */
 static struct kprobe probes[30];
 
+static struct log_block {
+   int id;
+   int line_count;
+   char *lines[30];
+   struct log_block *next;
+};
+
 struct proc_dir_entry *uid_entry;
 struct proc_dir_entry *toggle_entry;
 struct proc_dir_entry *log_entry;
+static struct log_block head;
+static struct log_block *current_block;
 
 static int toggle = 0;
 static int uid = -1;
@@ -37,9 +46,30 @@ static int uid = -1;
 static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 {
    int ret = 0;
+   char *line = (char *) kmalloc(150 * sizeof(char), GFP_KERNEL);
+
    if (toggle == 0 || current->uid != uid)
       return 0;
-   printk(KERN_INFO MODULE_NAME "[%s] %lu %d %d args 0x%lu '%lu' %d\n", kp->symbol_name, regs->rax, current->pid, current->tgid, (uintptr_t) regs->rdi, regs->rdi, (int) regs->rsi);
+
+   sprintf(line, "[%s] %lu %d %d args 0x%lu '%lu' %d\n", kp->symbol_name, regs->rax, current->pid, current->tgid, (uintptr_t) regs->rdi, regs->rdi, (int) regs->rsi);
+   printk(KERN_INFO MODULE_NAME "%s", line);
+
+   current_block->lines[current_block->line_count] = line;
+
+   if (current_block->line_count < 29) {
+      /* We aren't on the last line yet, increment line counter */
+      current_block->line_count++;
+   } else {
+      /* We just filled the last line, build a new block */
+      current_block->next = (struct log_block *) kmalloc(sizeof(struct log_block), GFP_KERNEL);
+      current_block->next->id = current_block->id + 1;
+      current_block = current_block->next;
+      current_block->line_count = 0;
+      current_block->next = NULL;
+      printk(KERN_INFO MODULE_NAME "Filled a block! It's id is %d\n", current_block->id);
+   }
+
+   /* Add formatted string to an open log_block */
    return ret;
 }
 
@@ -135,6 +165,11 @@ int init_module()
          return -EFAULT;
       }
    }
+
+   head.line_count = 0;
+   head.next = NULL;
+   head.id = 0;
+   current_block = &head;
 
    printk(KERN_INFO MODULE_NAME "added all the kprobes.\n");
 
