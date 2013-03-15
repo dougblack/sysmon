@@ -43,7 +43,7 @@ static struct log_block *current_block;
 
 static int toggle = 0;
 static int uid = -1;
-static int num_blocks;
+static int num_blocks = 0;
 
 /* Called before each syscall */
 static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
@@ -67,6 +67,9 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
       /* We just filled the last line, build a new block */
       current_block->next = (struct log_block *) kmalloc(sizeof(struct log_block), GFP_KERNEL);
       current_block->next->id = current_block->id + 1;
+      current_block = current_block->next;
+      current_block->line_count = 0;
+      current_block->next = NULL;
 
       /* Check if log is full. If so, drop first block in the log (the head). */
       if (++num_blocks > MAX_LOG_BLOCKS) {
@@ -79,9 +82,6 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
          }
          kfree(temp);
       }
-      current_block = current_block->next;
-      current_block->line_count = 0;
-      current_block->next = NULL;
 
       printk(KERN_INFO MODULE_NAME "Filled a block! Its id is %d\n", current_block->id);
    }
