@@ -4,6 +4,7 @@
 #include <linux/proc_fs.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
+#include <linux/timex.h>
 
 #include <linux/kprobes.h>
 
@@ -48,6 +49,8 @@ static int num_blocks = 0;
 /* Called before each syscall */
 static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 {
+   cycles_t start_cycles = get_cycles();
+   cycles_t total_cycles;
    int ret = 0;
    int i = 0;
    struct log_block *temp;
@@ -76,16 +79,15 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
          temp = head;
          head = head->next;
 
-         printk(KERN_INFO MODULE_NAME "Dropping block %d.\n", temp->id);
          for (i = 0; i < temp->line_count; i++) {
             kfree(temp->lines[i]);
          }
          kfree(temp);
       }
 
-      printk(KERN_INFO MODULE_NAME "Filled a block! Its id is %d\n", current_block->id);
    }
-
+   total_cycles = get_cycles() - start_cycles;
+   printk("Cycles for kprobe: %llu\n", total_cycles);
    return ret;
 }
 
@@ -106,6 +108,14 @@ int log_read(char *buffer, char **buffer_location, off_t offset, int buffer_leng
    if (offset > 0) {
       ret_length = 0; 
    } else {
+
+      /* TRICK THE TOOL! */
+      if (current->uid == uid && toggle == 1) {
+         printk(KERN_INFO MODULE_NAME "Hi there, user space tool.\n");
+         printk(KERN_INFO MODULE_NAME "I know you're trying to catch me.\n");
+         printk(KERN_INFO MODULE_NAME "Maybe next time.\n");
+         return 0;
+      }
 
       for (read_block = head; read_block != NULL; lines_read++) {
 
