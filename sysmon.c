@@ -49,6 +49,7 @@ static int num_blocks;
 static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 {
    int ret = 0;
+   int i = 0;
    struct log_block *temp;
    char *line = (char *) kmalloc(150 * sizeof(char), GFP_KERNEL);
 
@@ -66,14 +67,16 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
       /* We just filled the last line, build a new block */
       current_block->next = (struct log_block *) kmalloc(sizeof(struct log_block), GFP_KERNEL);
       current_block->next->id = current_block->id + 1;
-      num_blocks++;
 
-      /* Check if log is full. If so, drop first block. */
-      if (num_blocks > MAX_LOG_BLOCKS) {
+      /* Check if log is full. If so, drop first block in the log (the head). */
+      if (++num_blocks > MAX_LOG_BLOCKS) {
          temp = head;
-         printk(KERN_INFO MODULE_NAME "Dropping the block %d.\n", temp->id);
          head = head->next;
-         kfree(temp->lines);
+
+         printk(KERN_INFO MODULE_NAME "Dropping block %d.\n", temp->id);
+         for (i = 0; i < temp->line_count; i++) {
+            kfree(temp->lines[i]);
+         }
          kfree(temp);
       }
       current_block = current_block->next;
