@@ -11,7 +11,7 @@ else
    echo "Monitoring is not initialized."
 fi
 
-if [ $1] && [ $1 = "on" ]; then
+if [ $1 ] && [ $1 = "on" ]; then
    echo 1 > /sys/kernel/debug/kprobes/enabled
    echo "Turned monitoring on."
 elif [ $1 ] && [ $1 = "off" ]; then
